@@ -173,17 +173,23 @@
     if (!Array.isArray(routes) || !routes.length) {
       routes = DEFAULT_SPECS.map((s) => ({
         ...s,
-        data_source: "demo",
-        quotes_by_date: generateQuotes(s, todayIso, 180),
+        data_source: "none",
+        quotes_by_date: {},
       }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
     } else {
       let updated = false;
       for (const r of routes) {
-        if (Object.keys(r.quotes_by_date || {}).length < 180) {
-          r.quotes_by_date = generateQuotes(r, todayIso, 180);
-          updated = true;
+        const qmap = r.quotes_by_date || {};
+        for (const d of Object.keys(qmap)) {
+          const liveOnly = (qmap[d] || []).filter((q) => q.is_live === true);
+          if (liveOnly.length !== (qmap[d] || []).length) {
+            if (liveOnly.length) qmap[d] = liveOnly;
+            else delete qmap[d];
+            updated = true;
+          }
         }
+        r.quotes_by_date = qmap;
       }
       if (updated) localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
     }
@@ -215,60 +221,19 @@
     }
 
     const activeDate = selectedDate || dates[0] || new Date().toISOString().slice(0, 10);
-    let activeQuotes = qmap[activeDate];
-    if (!activeQuotes && /^\d{4}-\d{2}-\d{2}$/.test(activeDate)) {
-      activeQuotes = generateQuotes(route, activeDate, 1, activeDate)[activeDate] || [];
-    }
-    activeQuotes = activeQuotes || [];
+    const activeQuotes = qmap[activeDate] || [];
 
-    // Build chart window: either a specific month (YYYY-MM) or ±15 days around selectedDate
     const windowDailyMin = [];
-    if (chartMonth && /^\d{4}-\d{2}$/.test(chartMonth)) {
-      const [yy, mm] = chartMonth.split("-").map(Number);
-      const todayDt = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
-      const mStart = new Date(yy, mm - 1, 1);
-      const mEnd = new Date(yy, mm, 0);
-      const winStart = mStart < todayDt ? todayDt : mStart;
-      for (let cur = new Date(winStart); cur <= mEnd; cur.setDate(cur.getDate() + 1)) {
-        const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
-        let dayQ = qmap[iso];
-        if (!dayQ) {
-          dayQ = generateQuotes(route, iso, 1, iso)[iso] || [];
-        }
-        if (dayQ.length) {
-          const minQ = dayQ.reduce((a, b) => (b.price_vnd < a.price_vnd ? b : a));
-          windowDailyMin.push({
-            date: iso,
-            min_price: minQ.price_vnd,
-            airline_name: minQ.airline_name,
-            airline_code: minQ.airline_code,
-          });
-        }
-      }
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(activeDate)) {
-      const todayDt = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
-      const anchorDt = new Date(activeDate + "T00:00:00");
-      const minus15 = new Date(anchorDt);
-      minus15.setDate(minus15.getDate() - 15);
-      const winStart = minus15 < todayDt ? todayDt : minus15;
-      const winEnd = new Date(anchorDt);
-      winEnd.setDate(winEnd.getDate() + 15);
-
-      for (let cur = new Date(winStart); cur <= winEnd; cur.setDate(cur.getDate() + 1)) {
-        const iso = cur.toISOString().slice(0, 10);
-        let dayQ = qmap[iso];
-        if (!dayQ) {
-          dayQ = generateQuotes(route, iso, 1, iso)[iso] || [];
-        }
-        if (dayQ.length) {
-          const minQ = dayQ.reduce((a, b) => (b.price_vnd < a.price_vnd ? b : a));
-          windowDailyMin.push({
-            date: iso,
-            min_price: minQ.price_vnd,
-            airline_name: minQ.airline_name,
-            airline_code: minQ.airline_code,
-          });
-        }
+    for (const iso of dates) {
+      const dayQ = qmap[iso] || [];
+      if (dayQ.length) {
+        const minQ = dayQ.reduce((a, b) => (b.price_vnd < a.price_vnd ? b : a));
+        windowDailyMin.push({
+          date: iso,
+          min_price: minQ.price_vnd,
+          airline_name: minQ.airline_name,
+          airline_code: minQ.airline_code,
+        });
       }
     }
 
@@ -336,7 +301,7 @@
           pinned: true,
           data_source: "demo",
         };
-        newRoute.quotes_by_date = generateQuotes(newRoute, new Date().toISOString().slice(0, 10), 180, String(Date.now()));
+        newRoute.quotes_by_date = {};
         routes.unshift(newRoute);
         saveStore(routes);
         return { route: summarizeRoute(newRoute) };

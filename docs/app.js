@@ -240,7 +240,7 @@ function renderRouteSidebar() {
 
   list.innerHTML = state.routes
     .map((r) => {
-      const minPrice = r.cheapest_overall ? formatVND(r.cheapest_overall.price_vnd) : "—";
+      const minPrice = r.cheapest_overall ? `Từ ${formatVND(r.cheapest_overall.price_vnd)}` : "Chưa tải giá";
       const tripLabel = r.trip_type === "round_trip" ? "Khứ hồi" : "1 chiều";
       const alertHtml = r.alert_triggered
         ? `<span class="tag tag-alert">Đạt mục tiêu ≤ ${formatShortVND(r.target_price)}</span>`
@@ -261,17 +261,17 @@ function renderRouteSidebar() {
             </label>
           </div>
           <div class="route-meta">
-            <span class="route-price">Từ ${minPrice}</span>
+            <span class="route-price" style="${r.cheapest_overall ? "" : "color:var(--text-muted);font-weight:500;font-size:0.84rem"}">${minPrice}</span>
             <div class="route-actions">
               <button class="icon-btn js-edit-target" data-id="${r.id}" title="Đặt giá mục tiêu">🎯</button>
-              <button class="icon-btn js-refresh-route" data-id="${r.id}" title="Làm mới giá">↻</button>
+              <button class="icon-btn js-refresh-route" data-id="${r.id}" title="Lấy giá SerpApi">↻</button>
               <button class="icon-btn js-delete-route" data-id="${r.id}" title="Xoá route">🗑</button>
             </div>
           </div>
           <div class="route-tags">
             <span class="tag">${tripLabel}</span>
             <span class="tag">${r.cabin}</span>
-            ${r.data_source && r.data_source !== "demo" ? `<span class="tag tag-live">Live: ${r.data_source}</span>` : ""}
+            ${r.data_source && r.data_source !== "none" && r.data_source !== "demo" ? `<span class="tag tag-live">Live: ${r.data_source}</span>` : ""}
             ${alertHtml}
           </div>
         </div>
@@ -284,7 +284,10 @@ function renderChart() {
   const container = el("price-chart");
   const route = state.routes.find((r) => r.id === state.chartRouteId);
   if (!route || !route.daily_min.length) {
-    container.innerHTML = `<div class="empty-state">Không có dữ liệu biểu đồ.</div>`;
+    el("chart-subtitle").textContent = route
+      ? `${route.origin} → ${route.destination}: Chưa có dữ liệu SerpApi. Hãy bấm ↻ trên route để tải giá trực tuyến.`
+      : "Chưa có dữ liệu biểu đồ.";
+    container.innerHTML = `<div class="empty-state">Chưa có dữ liệu giá từ SerpApi cho khoảng ngày/tháng này. Bấm nút <strong>↻</strong> trên route ở cột bên trái để lấy giá thực tế.</div>`;
     return;
   }
 
@@ -411,7 +414,11 @@ function renderComparison() {
               `;
             })
             .join("")
-        : `<tr><td colspan="6" class="empty-state">Không có chuyến bay nào khớp bộ lọc giá/bay thẳng.</td></tr>`;
+        : `<tr><td colspan="6" class="empty-state">${
+            r.live_error
+              ? `⚠️ Lỗi SerpApi: ${r.live_error}`
+              : `Chưa có dữ liệu SerpApi cho ngày <strong>${formatDateLabel(state.selectedDate)}</strong>. Bấm <strong>↻</strong> trên route để lấy giá trực tuyến.`
+          }</td></tr>`;
 
       return `
         <div class="compare-route-block ${isWinnerRoute ? "is-cheapest" : ""}">
