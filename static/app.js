@@ -403,7 +403,7 @@ function renderComparison() {
               ${isWinnerRoute ? `<span class="pill-cheapest">Route rẻ nhất</span>` : ""}
             </div>
             <div style="font-size:0.85rem;color:var(--text-muted)">
-              TB 60 ngày: <strong>${formatVND(r.avg_price)}</strong> • Thấp nhất 60 ngày: <strong style="color:var(--emerald)">${r.cheapest_overall ? formatVND(r.cheapest_overall.price_vnd) : "—"}</strong>
+              TB 6 tháng: <strong>${formatVND(r.avg_price)}</strong> • Thấp nhất 6 tháng: <strong style="color:var(--emerald)">${r.cheapest_overall ? formatVND(r.cheapest_overall.price_vnd) : "—"}</strong>
             </div>
           </div>
           <div style="overflow-x:auto">

@@ -118,7 +118,7 @@
     return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
   }
 
-  function generateQuotes(route, startIso, days = 60, salt = "") {
+  function generateQuotes(route, startIso, days = 180, salt = "") {
     const rng = seededRand(`${route.id}-${salt}`);
     const domestic = isDomestic(route.origin, route.destination);
     const pool = domestic ? AIRLINES_DOMESTIC : AIRLINES_INTL.slice(0, 4);
@@ -174,9 +174,18 @@
       routes = DEFAULT_SPECS.map((s) => ({
         ...s,
         data_source: "demo",
-        quotes_by_date: generateQuotes(s, todayIso, 60),
+        quotes_by_date: generateQuotes(s, todayIso, 180),
       }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
+    } else {
+      let updated = false;
+      for (const r of routes) {
+        if (Object.keys(r.quotes_by_date || {}).length < 180) {
+          r.quotes_by_date = generateQuotes(r, todayIso, 180);
+          updated = true;
+        }
+      }
+      if (updated) localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
     }
     return routes;
   }
@@ -275,7 +284,7 @@
           pinned: true,
           data_source: "demo",
         };
-        newRoute.quotes_by_date = generateQuotes(newRoute, new Date().toISOString().slice(0, 10), 60, String(Date.now()));
+        newRoute.quotes_by_date = generateQuotes(newRoute, new Date().toISOString().slice(0, 10), 180, String(Date.now()));
         routes.unshift(newRoute);
         saveStore(routes);
         return { route: summarizeRoute(newRoute) };
@@ -302,7 +311,7 @@
         const id = path.slice("/api/routes/".length, -"/refresh".length);
         const r = routes.find((x) => x.id === id);
         if (!r) throw new Error("Không tìm thấy route.");
-        r.quotes_by_date = generateQuotes(r, new Date().toISOString().slice(0, 10), 60, String(Date.now()));
+        r.quotes_by_date = generateQuotes(r, new Date().toISOString().slice(0, 10), 180, String(Date.now()));
         saveStore(routes);
         return { route: summarizeRoute(r, parsed.searchParams.get("date")) };
       }

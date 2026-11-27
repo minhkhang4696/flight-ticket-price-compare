@@ -136,7 +136,7 @@ def _generate_quotes_for_route(
     duration_min: int,
     cabin: str,
     start_date: date,
-    days: int = 60,
+    days: int = 180,
     rng: random.Random | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Generate deterministic-yet-realistic airline/OTA quotes across dates."""
@@ -208,7 +208,7 @@ def _build_initial_data() -> dict[str, Any]:
             duration_min=spec["duration_min"],
             cabin=spec["cabin"],
             start_date=today,
-            days=60,
+            days=180,
         )
         routes.append(
             {
@@ -221,7 +221,7 @@ def _build_initial_data() -> dict[str, Any]:
     return {"routes": routes}
 
 
-def _ensure_horizon_days(data: dict[str, Any], days: int = 60) -> bool:
+def _ensure_horizon_days(data: dict[str, Any], days: int = 180) -> bool:
     """Ensure every route has quotes for at least `days` from today."""
     today = date.today()
     changed = False
@@ -261,7 +261,7 @@ def load_data() -> dict[str, Any]:
         save_data(data)
         return data
 
-    if _ensure_horizon_days(data, days=60):
+    if _ensure_horizon_days(data, days=180):
         save_data(data)
     return data
 
@@ -397,7 +397,7 @@ def add_route(payload: dict[str, Any]) -> dict[str, Any]:
         duration_min=duration_min,
         cabin=cabin,
         start_date=today,
-        days=60,
+        days=180,
         rng=random.Random(),
     )
 
@@ -478,7 +478,7 @@ def refresh_route_prices(route_id: str, target_date: str | None = None) -> dict[
                     duration_min=route.get("duration_min", 120),
                     cabin=route.get("cabin", "Economy"),
                     start_date=today,
-                    days=60,
+                    days=180,
                     rng=random.Random(),
                 )
                 route["data_source"] = "demo"
