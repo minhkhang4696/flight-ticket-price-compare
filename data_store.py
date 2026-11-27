@@ -302,7 +302,7 @@ def summarize_route(route: dict[str, Any], selected_date: str | None = None) -> 
             best_overall = cheapest_day
             best_date = d_str
 
-    active_date = selected_date if selected_date else (all_dates[0] if all_dates else None)
+    active_date = selected_date if selected_date else (all_dates[0] if all_dates else date.today().isoformat())
     if active_date and active_date not in quotes_by_date:
         try:
             target_dt = date.fromisoformat(active_date)
@@ -319,10 +319,47 @@ def summarize_route(route: dict[str, Any], selected_date: str | None = None) -> 
             )
             active_quotes = generated_single.get(active_date, [])
         except ValueError:
-            active_date = all_dates[0] if all_dates else None
+            active_date = all_dates[0] if all_dates else date.today().isoformat()
             active_quotes = quotes_by_date.get(active_date, []) if active_date else []
     else:
         active_quotes = quotes_by_date.get(active_date, []) if active_date else []
+
+    # Build chart window: 15 days before selected date to 15 days after (clamped at today)
+    window_daily_min: list[dict[str, Any]] = []
+    try:
+        anchor_dt = date.fromisoformat(active_date)
+        today_dt = date.today()
+        win_start = max(today_dt, anchor_dt - timedelta(days=15))
+        win_end = anchor_dt + timedelta(days=15)
+        cur = win_start
+        while cur <= win_end:
+            c_str = cur.isoformat()
+            day_q = quotes_by_date.get(c_str)
+            if not day_q:
+                day_q = _generate_quotes_for_route(
+                    route_id=route["id"],
+                    origin=route["origin"],
+                    destination=route["destination"],
+                    base_price=route.get("base_price", 1500000),
+                    duration_min=route.get("duration_min", 120),
+                    cabin=route.get("cabin", "Economy"),
+                    start_date=cur,
+                    days=1,
+                    rng=random.Random(hash(f"{route['id']}-{c_str}") & 0xFFFFFFFF),
+                ).get(c_str, [])
+            if day_q:
+                cheapest_w = min(day_q, key=lambda q: q["price_vnd"])
+                window_daily_min.append(
+                    {
+                        "date": c_str,
+                        "min_price": cheapest_w["price_vnd"],
+                        "airline_name": cheapest_w["airline_name"],
+                        "airline_code": cheapest_w["airline_code"],
+                    }
+                )
+            cur += timedelta(days=1)
+    except ValueError:
+        window_daily_min = daily_min[:31]
     cheapest_on_date = min(active_quotes, key=lambda q: q["price_vnd"]) if active_quotes else None
 
     avg_price = int(sum(all_prices) / len(all_prices)) if all_prices else 0
@@ -357,7 +394,7 @@ def summarize_route(route: dict[str, Any], selected_date: str | None = None) -> 
         "avg_price": avg_price,
         "max_price": max_price,
         "savings_vs_avg": max(0, avg_price - min_price),
-        "daily_min": daily_min,
+        "daily_min": window_daily_min,
         "quotes_on_date": active_quotes,
     }
 

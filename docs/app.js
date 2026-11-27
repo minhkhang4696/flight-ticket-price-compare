@@ -276,8 +276,11 @@ function renderChart() {
   const minP = Math.min(...prices);
   const maxP = Math.max(...prices);
   const span = Math.max(1, maxP - minP);
+  const cheapestDay = route.daily_min.find((d) => d.min_price === minP);
+  const firstD = route.daily_min[0].date;
+  const lastD = route.daily_min[route.daily_min.length - 1].date;
 
-  el("chart-subtitle").textContent = `${route.origin} → ${route.destination}: Giá thấp nhất ${formatVND(minP)} vào ${formatDateLabel(route.cheapest_date)}. Nhấp cột để đổi ngày so sánh.`;
+  el("chart-subtitle").textContent = `${route.origin} → ${route.destination} (${formatDateLabel(firstD)} – ${formatDateLabel(lastD)}): Giá thấp nhất ${formatVND(minP)} vào ${formatDateLabel(cheapestDay ? cheapestDay.date : route.cheapest_date)}. Nhấp cột để đổi ngày so sánh.`;
 
   const barsHtml = route.daily_min
     .map((d) => {

@@ -221,6 +221,35 @@
     }
     activeQuotes = activeQuotes || [];
 
+    // Build chart window: 15 days before selected date to 15 days after (clamped at today)
+    const windowDailyMin = [];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(activeDate)) {
+      const todayDt = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+      const anchorDt = new Date(activeDate + "T00:00:00");
+      const minus15 = new Date(anchorDt);
+      minus15.setDate(minus15.getDate() - 15);
+      const winStart = minus15 < todayDt ? todayDt : minus15;
+      const winEnd = new Date(anchorDt);
+      winEnd.setDate(winEnd.getDate() + 15);
+
+      for (let cur = new Date(winStart); cur <= winEnd; cur.setDate(cur.getDate() + 1)) {
+        const iso = cur.toISOString().slice(0, 10);
+        let dayQ = qmap[iso];
+        if (!dayQ) {
+          dayQ = generateQuotes(route, iso, 1, iso)[iso] || [];
+        }
+        if (dayQ.length) {
+          const minQ = dayQ.reduce((a, b) => (b.price_vnd < a.price_vnd ? b : a));
+          windowDailyMin.push({
+            date: iso,
+            min_price: minQ.price_vnd,
+            airline_name: minQ.airline_name,
+            airline_code: minQ.airline_code,
+          });
+        }
+      }
+    }
+
     const avgPrice = allPrices.length ? Math.round(allPrices.reduce((a, b) => a + b, 0) / allPrices.length) : 0;
     const minPrice = bestOverall ? bestOverall.price_vnd : 0;
     return {
@@ -240,7 +269,7 @@
       active_date: activeDate,
       avg_price: avgPrice,
       savings_vs_avg: Math.max(0, avgPrice - minPrice),
-      daily_min: dailyMin,
+      daily_min: windowDailyMin.length ? windowDailyMin : dailyMin.slice(0, 31),
       quotes_on_date: activeQuotes,
     };
   }
