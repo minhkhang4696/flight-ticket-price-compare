@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# macOS
+.DS_Store
+
+# Local runtime data & API keys (DO NOT COMMIT SECRETS)
+data/config.json
+data/flights.json
+data/*.tmp
