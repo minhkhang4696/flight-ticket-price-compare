@@ -5,6 +5,7 @@ const state = {
   settings: null,
   selectedDate: null,
   chartRouteId: null,
+  chartMonth: "window",
   sortBy: "price",
   directOnly: false,
   maxPrice: "",
@@ -117,6 +118,21 @@ function populateDateFilter() {
     state.selectedDate = defaultDate;
   }
   dateInput.value = state.selectedDate;
+}
+
+function populateChartMonthSelect() {
+  const sel = el("chart-month-select");
+  if (!sel) return;
+  const now = new Date();
+  const options = [`<option value="window">±15 ngày quanh ngày bay</option>`];
+  for (let i = 0; i < 13; i++) {
+    const dt = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const val = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+    const label = `Tháng ${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
+    options.push(`<option value="${val}">${label}</option>`);
+  }
+  sel.innerHTML = options.join("");
+  sel.value = state.chartMonth || "window";
 }
 
 function populateChartRouteSelect() {
@@ -452,9 +468,12 @@ async function refreshComparison() {
 }
 
 async function loadAll() {
+  const params = new URLSearchParams();
+  if (state.selectedDate) params.set("date", state.selectedDate);
+  if (state.chartMonth && state.chartMonth !== "window") params.set("month", state.chartMonth);
   const [airportsRes, routesRes, settingsRes] = await Promise.all([
     api("/api/airports"),
-    api(`/api/routes${state.selectedDate ? `?date=${encodeURIComponent(state.selectedDate)}` : ""}`),
+    api(`/api/routes${params.toString() ? `?${params.toString()}` : ""}`),
     api("/api/settings"),
   ]);
   state.airports = airportsRes.airports;
@@ -463,6 +482,7 @@ async function loadAll() {
   renderSettingsStatus();
   populateAirportSelects();
   populateDateFilter();
+  populateChartMonthSelect();
   populateChartRouteSelect();
   renderRouteSidebar();
   renderChart();
@@ -470,7 +490,10 @@ async function loadAll() {
 }
 
 async function reloadRoutesAndCompare() {
-  const routesRes = await api(`/api/routes?date=${encodeURIComponent(state.selectedDate || "")}`);
+  const params = new URLSearchParams();
+  if (state.selectedDate) params.set("date", state.selectedDate);
+  if (state.chartMonth && state.chartMonth !== "window") params.set("month", state.chartMonth);
+  const routesRes = await api(`/api/routes?${params.toString()}`);
   state.routes = routesRes.routes;
   populateChartRouteSelect();
   renderRouteSidebar();
@@ -497,6 +520,11 @@ function bindEvents() {
   el("filter-max-price").addEventListener("input", async (e) => {
     state.maxPrice = e.target.value.trim();
     await refreshComparison();
+  });
+
+  el("chart-month-select").addEventListener("change", async (e) => {
+    state.chartMonth = e.target.value;
+    await reloadRoutesAndCompare();
   });
 
   el("chart-route-select").addEventListener("change", (e) => {

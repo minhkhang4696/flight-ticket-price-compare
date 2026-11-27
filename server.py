@@ -61,8 +61,12 @@ class FlightCompareHandler(BaseHTTPRequestHandler):
         if path == "/api/routes":
             qs = parse_qs(parsed.query)
             selected_date = qs.get("date", [None])[0]
+            chart_month = qs.get("month", [None])[0]
             data = data_store.load_data()
-            summaries = [data_store.summarize_route(r, selected_date=selected_date) for r in data["routes"]]
+            summaries = [
+                data_store.summarize_route(r, selected_date=selected_date, chart_month=chart_month)
+                for r in data["routes"]
+            ]
             self._send_json(HTTPStatus.OK, {"routes": summaries})
             return
 

@@ -274,7 +274,11 @@ def save_data(data: dict[str, Any]) -> None:
     os.replace(tmp_file, DATA_FILE)
 
 
-def summarize_route(route: dict[str, Any], selected_date: str | None = None) -> dict[str, Any]:
+def summarize_route(
+    route: dict[str, Any],
+    selected_date: str | None = None,
+    chart_month: str | None = None,
+) -> dict[str, Any]:
     """Return route metadata plus cheapest price stats."""
     quotes_by_date: dict[str, list[dict[str, Any]]] = route.get("quotes_by_date", {})
     all_dates = sorted(quotes_by_date.keys())
@@ -324,13 +328,24 @@ def summarize_route(route: dict[str, Any], selected_date: str | None = None) -> 
     else:
         active_quotes = quotes_by_date.get(active_date, []) if active_date else []
 
-    # Build chart window: 15 days before selected date to 15 days after (clamped at today)
+    # Build chart window: either a specific month (YYYY-MM) or ±15 days around selected_date
     window_daily_min: list[dict[str, Any]] = []
     try:
-        anchor_dt = date.fromisoformat(active_date)
         today_dt = date.today()
-        win_start = max(today_dt, anchor_dt - timedelta(days=15))
-        win_end = anchor_dt + timedelta(days=15)
+        if chart_month and len(chart_month) == 7 and chart_month[4] == "-":
+            year_i, month_i = map(int, chart_month.split("-"))
+            month_start = date(year_i, month_i, 1)
+            if month_i == 12:
+                next_month = date(year_i + 1, 1, 1)
+            else:
+                next_month = date(year_i, month_i + 1, 1)
+            win_start = max(today_dt, month_start)
+            win_end = next_month - timedelta(days=1)
+        else:
+            anchor_dt = date.fromisoformat(active_date)
+            win_start = max(today_dt, anchor_dt - timedelta(days=15))
+            win_end = anchor_dt + timedelta(days=15)
+
         cur = win_start
         while cur <= win_end:
             c_str = cur.isoformat()

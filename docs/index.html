@@ -100,14 +100,17 @@
         <!-- Cheapest Winner Banner -->
         <div id="winner-banner" class="winner-banner hidden"></div>
 
-        <!-- 60-Day Price Trend Chart -->
+        <!-- Dynamic Price Trend Chart (Monthly or ±15 Days) -->
         <div class="panel chart-panel">
           <div class="panel-header">
             <div>
-              <h2>Biểu đồ giá rẻ nhất (±15 ngày quanh ngày bay)</h2>
+              <h2>Biểu đồ giá rẻ nhất</h2>
               <p id="chart-subtitle" class="panel-hint">Nhấp vào từng cột ngày để chuyển nhanh ngày so sánh</p>
             </div>
-            <select id="chart-route-select" aria-label="Chọn route cho biểu đồ"></select>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="chart-month-select" aria-label="Chọn tháng xem biểu đồ"></select>
+              <select id="chart-route-select" aria-label="Chọn route cho biểu đồ"></select>
+            </div>
           </div>
           <div id="price-chart" class="price-chart"></div>
         </div>

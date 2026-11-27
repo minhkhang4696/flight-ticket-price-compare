@@ -194,7 +194,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(routes));
   }
 
-  function summarizeRoute(route, selectedDate) {
+  function summarizeRoute(route, selectedDate, chartMonth) {
     const qmap = route.quotes_by_date || {};
     const dates = Object.keys(qmap).sort();
     let bestOverall = null;
@@ -221,9 +221,31 @@
     }
     activeQuotes = activeQuotes || [];
 
-    // Build chart window: 15 days before selected date to 15 days after (clamped at today)
+    // Build chart window: either a specific month (YYYY-MM) or ±15 days around selectedDate
     const windowDailyMin = [];
-    if (/^\d{4}-\d{2}-\d{2}$/.test(activeDate)) {
+    if (chartMonth && /^\d{4}-\d{2}$/.test(chartMonth)) {
+      const [yy, mm] = chartMonth.split("-").map(Number);
+      const todayDt = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+      const mStart = new Date(yy, mm - 1, 1);
+      const mEnd = new Date(yy, mm, 0);
+      const winStart = mStart < todayDt ? todayDt : mStart;
+      for (let cur = new Date(winStart); cur <= mEnd; cur.setDate(cur.getDate() + 1)) {
+        const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+        let dayQ = qmap[iso];
+        if (!dayQ) {
+          dayQ = generateQuotes(route, iso, 1, iso)[iso] || [];
+        }
+        if (dayQ.length) {
+          const minQ = dayQ.reduce((a, b) => (b.price_vnd < a.price_vnd ? b : a));
+          windowDailyMin.push({
+            date: iso,
+            min_price: minQ.price_vnd,
+            airline_name: minQ.airline_name,
+            airline_code: minQ.airline_code,
+          });
+        }
+      }
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(activeDate)) {
       const todayDt = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
       const anchorDt = new Date(activeDate + "T00:00:00");
       const minus15 = new Date(anchorDt);
@@ -290,7 +312,8 @@
       }
       if (path === "/api/routes" && method === "GET") {
         const d = parsed.searchParams.get("date");
-        return { routes: routes.map((r) => summarizeRoute(r, d)) };
+        const m = parsed.searchParams.get("month");
+        return { routes: routes.map((r) => summarizeRoute(r, d, m)) };
       }
       if (path === "/api/routes" && method === "POST") {
         const origin = String(body.origin || "").trim().toUpperCase();
