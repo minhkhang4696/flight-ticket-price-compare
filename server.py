@@ -189,7 +189,7 @@ class FlightCompareHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
 
-def run_server(host: str = "127.0.0.1", port: int = 8080) -> None:
+def run_server(host: str = "0.0.0.0", port: int = 8080) -> None:
     data_store.load_data()
     server = ThreadingHTTPServer((host, port), FlightCompareHandler)
     print(f"Flight Price Compare server running at http://{host}:{port}")
@@ -201,5 +201,6 @@ def run_server(host: str = "127.0.0.1", port: int = 8080) -> None:
 
 
 if __name__ == "__main__":
+    host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8080"))
-    run_server(port=port)
+    run_server(host=host, port=port)
