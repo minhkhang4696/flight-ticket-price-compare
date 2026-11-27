@@ -48,14 +48,19 @@ function showToast(message) {
   showToast._timer = setTimeout(() => toast.classList.add("hidden"), 2800);
 }
 
+const API_BASE = window.location.hostname.endsWith("github.io")
+  ? "https://skycompare-flights.onrender.com"
+  : "";
+
 let useStaticFallback = false;
 
 async function api(url, options = {}) {
+  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
   if (useStaticFallback && window.ClientFlightEngine) {
     return window.ClientFlightEngine.request(url, options);
   }
   try {
-    const res = await fetch(url, {
+    const res = await fetch(fullUrl, {
       headers: { "Content-Type": "application/json" },
       ...options,
     });
