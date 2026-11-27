@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyCompare — So sánh giá vé máy bay theo Route</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">✈</div>
+        <div>
+          <h1>SkyCompare</h1>
+          <p class="subtitle">So sánh giá vé theo route &amp; săn vé rẻ nhất</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="live-status-pill" class="status-pill status-demo" title="Trạng thái nguồn dữ liệu giá vé">🟡 Demo</span>
+        <button id="btn-open-settings" class="btn btn-ghost" title="Cấu hình API tra giá trực tuyến (SerpApi / Amadeus)">
+          ⚙ API Realtime
+        </button>
+        <button id="btn-refresh-all" class="btn btn-ghost" title="Cập nhật lại giá mới nhất cho các route đang chọn">
+          ↻ Làm mới giá
+        </button>
+        <button id="btn-open-modal" class="btn btn-primary">
+          + Thêm Route mới
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <!-- KPI Summary -->
+    <section class="kpi-grid" aria-label="Tổng quan giá vé">
+      <article class="kpi-card kpi-highlight">
+        <span class="kpi-label">Route rẻ nhất (2 tháng)</span>
+        <strong id="kpi-best-route" class="kpi-value">—</strong>
+        <span id="kpi-best-route-sub" class="kpi-sub">Đang tải...</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Rẻ nhất ngày đang chọn</span>
+        <strong id="kpi-best-today" class="kpi-value">—</strong>
+        <span id="kpi-best-today-sub" class="kpi-sub">—</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Tiết kiệm tối đa</span>
+        <strong id="kpi-savings" class="kpi-value">—</strong>
+        <span id="kpi-savings-sub" class="kpi-sub">So với giá trung bình</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Đạt giá mục tiêu</span>
+        <strong id="kpi-alerts" class="kpi-value">—</strong>
+        <span id="kpi-alerts-sub" class="kpi-sub">Route đang có giá tốt</span>
+      </article>
+    </section>
+
+    <div class="workspace">
+      <!-- Sidebar: Tracked Routes -->
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Routes theo dõi</h2>
+            <span id="route-count" class="badge">0</span>
+          </div>
+          <p class="panel-hint">Chọn (ghim) các route muốn so sánh song song.</p>
+          <div id="route-list" class="route-list"></div>
+        </div>
+      </aside>
+
+      <!-- Main Comparison Area -->
+      <section class="comparison-area">
+        <!-- Filters -->
+        <div class="panel filter-bar">
+          <div class="filter-group">
+            <label for="filter-date">Ngày bay (Lịch)</label>
+            <input id="filter-date" type="date" />
+          </div>
+          <div class="filter-group">
+            <label for="filter-sort">Sắp xếp theo</label>
+            <select id="filter-sort">
+              <option value="price">Giá rẻ nhất</option>
+              <option value="duration">Bay nhanh nhất</option>
+              <option value="savings">Tiết kiệm nhiều nhất</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-max-price">Giá tối đa (VNĐ)</label>
+            <input id="filter-max-price" type="number" step="100000" min="0" placeholder="Không giới hạn" />
+          </div>
+          <div class="filter-group filter-checkbox">
+            <label class="checkbox-label">
+              <input id="filter-direct" type="checkbox" />
+              <span>Chỉ bay thẳng</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cheapest Winner Banner -->
+        <div id="winner-banner" class="winner-banner hidden"></div>
+
+        <!-- 60-Day Price Trend Chart -->
+        <div class="panel chart-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Biểu đồ giá rẻ nhất 2 tháng tới (60 ngày)</h2>
+              <p id="chart-subtitle" class="panel-hint">Nhấp vào từng cột ngày để chuyển nhanh ngày so sánh</p>
+            </div>
+            <select id="chart-route-select" aria-label="Chọn route cho biểu đồ"></select>
+          </div>
+          <div id="price-chart" class="price-chart"></div>
+        </div>
+
+        <!-- Side-by-Side Comparison Cards / Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>So sánh chi tiết các Route đã chọn</h2>
+            <span id="compare-summary" class="panel-hint"></span>
+          </div>
+          <div id="compare-container" class="compare-container"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Add Route Modal -->
+  <div id="add-route-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Thêm Route bay mới</h3>
+        <button id="btn-close-modal" class="icon-btn" aria-label="Đóng">✕</button>
+      </div>
+      <form id="add-route-form" class="modal-form">
+        <div class="form-row">
+          <div class="form-field">
+            <label for="input-origin">Điểm đi (Tìm hoặc nhập mã IATA)</label>
+            <input id="input-origin" list="airports-datalist" placeholder="VD: SGN, HAN, JFK..." required autocomplete="off" />
+          </div>
+          <div class="form-field">
+            <label for="input-destination">Điểm đến (Tìm hoặc nhập mã IATA)</label>
+            <input id="input-destination" list="airports-datalist" placeholder="VD: LHR, CDG, NRT..." required autocomplete="off" />
+          </div>
+        </div>
+        <datalist id="airports-datalist"></datalist>
+        <p class="panel-hint" style="margin: -4px 0 0 0; font-size: 0.78rem;">
+          Hỗ trợ toàn bộ sân bay trên thế giới: gõ tên thành phố/quốc gia để chọn hoặc nhập trực tiếp mã IATA 3 chữ cái bất kỳ (VD: LAX, CDG, DXB, SYD).
+        </p>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="input-trip-type">Loại vé</label>
+            <select id="input-trip-type">
+              <option value="one_way">Một chiều</option>
+              <option value="round_trip">Khứ hồi</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="input-cabin">Hạng vé</label>
+            <select id="input-cabin">
+              <option value="Economy">Phổ thông (Economy)</option>
+              <option value="Business">Thương gia (Business)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="input-target-price">Giá mục tiêu cảnh báo (VNĐ, tuỳ chọn)</label>
+          <input id="input-target-price" type="number" step="50000" min="100000" placeholder="VD: 1200000" />
+        </div>
+        <p id="form-error" class="form-error hidden"></p>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-modal" class="btn btn-secondary">Huỷ</button>
+          <button type="submit" class="btn btn-primary">Thêm &amp; So sánh</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- API Settings Modal -->
+  <div id="settings-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="settings-title">Cài đặt nguồn dữ liệu Realtime</h3>
+        <button id="btn-close-settings" class="icon-btn" aria-label="Đóng">✕</button>
+      </div>
+      <p class="panel-hint" style="margin-bottom:12px">
+        Các trang như Booking.com, Traveloka chặn bot trực tiếp bằng Cloudflare/CAPTCHA. Để lấy giá <strong>realtime</strong> ổn định từ nhiều hãng &amp; OTA, bạn có thể gắn API key miễn phí từ <strong>SerpApi (Google Flights)</strong> hoặc <strong>Amadeus</strong>.
+      </p>
+      <form id="settings-form" class="modal-form">
+        <div class="form-field">
+          <label for="setting-provider">Chế độ nguồn dữ liệu</label>
+          <select id="setting-provider">
+            <option value="auto">Tự động (Ưu tiên Live API nếu có key)</option>
+            <option value="serpapi">SerpApi — Google Flights (Tổng hợp hãng &amp; OTA)</option>
+            <option value="amadeus">Amadeus Self-Service Flight API</option>
+            <option value="demo">Dữ liệu mẫu (Offline Demo)</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="setting-serpapi-key">SerpApi API Key <small>(lấy miễn phí tại serpapi.com)</small></label>
+          <input id="setting-serpapi-key" type="password" placeholder="Nhập SERPAPI_KEY (để trống nếu giữ nguyên)" />
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="setting-amadeus-id">Amadeus Client ID</label>
+            <input id="setting-amadeus-id" type="password" placeholder="AMADEUS_CLIENT_ID" />
+          </div>
+          <div class="form-field">
+            <label for="setting-amadeus-secret">Amadeus Client Secret</label>
+            <input id="setting-amadeus-secret" type="password" placeholder="AMADEUS_CLIENT_SECRET" />
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="setting-amadeus-env">Môi trường Amadeus</label>
+          <select id="setting-amadeus-env">
+            <option value="test">Test (Sandbox miễn phí)</option>
+            <option value="production">Production</option>
+          </select>
+        </div>
+        <p id="settings-error" class="form-error hidden"></p>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-settings" class="btn btn-secondary">Đóng</button>
+          <button type="submit" id="btn-save-settings" class="btn btn-primary">Lưu cấu hình</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="./client_engine.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

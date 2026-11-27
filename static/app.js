@@ -47,16 +47,36 @@ function showToast(message) {
   showToast._timer = setTimeout(() => toast.classList.add("hidden"), 2800);
 }
 
+let useStaticFallback = false;
+
 async function api(url, options = {}) {
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error || "Đã có lỗi xảy ra");
+  if (useStaticFallback && window.ClientFlightEngine) {
+    return window.ClientFlightEngine.request(url, options);
   }
-  return data;
+  try {
+    const res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error("NOT_JSON_BACKEND");
+    }
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Đã có lỗi xảy ra");
+    }
+    return data;
+  } catch (err) {
+    if (
+      window.ClientFlightEngine &&
+      (err.message === "NOT_JSON_BACKEND" || err instanceof TypeError || err instanceof SyntaxError)
+    ) {
+      useStaticFallback = true;
+      return window.ClientFlightEngine.request(url, options);
+    }
+    throw err;
+  }
 }
 
 function populateAirportSelects() {
@@ -172,6 +192,13 @@ function renderKPIs() {
 
 function renderSettingsStatus() {
   const pill = el("live-status-pill");
+  if (useStaticFallback) {
+    pill.textContent = "🌐 GitHub Pages (Static)";
+    pill.classList.remove("status-live");
+    const settingsBtn = el("btn-open-settings");
+    if (settingsBtn) settingsBtn.classList.add("hidden");
+    return;
+  }
   if (!state.settings) return;
   const active = state.settings.active_provider;
   if (active === "serpapi") {
